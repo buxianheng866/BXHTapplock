@@ -8,6 +8,9 @@
 
 import Foundation
 import CoreBluetooth
+import RxCocoa
+import RxSwift
+import NSObject_Rx
 let UUID_SERVICE = "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"
 let DFU_SERVICE = "00001530-1212-EFDE-1523-785FEABCD123"
 let UUID_Characteristic_SEND = "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"
@@ -19,7 +22,9 @@ final class TapplockManager: NSObject {
     static let `default` = TapplockManager()
     
     // 连接过的锁
-    var my_locks: [TapplockModel] = [TapplockModel]()
+ 
+    var rx_mylocks: BehaviorRelay<[TapplockModel]> = BehaviorRelay(value: [TapplockModel]())
+    
     // 扫描的设备
     var scan_peripheral = Set<BLEPeripheral>()
     
@@ -44,7 +49,7 @@ final class TapplockManager: NSObject {
     
     public func stop() {
         manager.stopScan()
-        for model in self.my_locks {
+        for model in self.rx_mylocks.value {
             if let per = model.peripheral {
                 manager.cancelPeripheralConnection(per.peripheral)
             }
@@ -58,15 +63,15 @@ final class TapplockManager: NSObject {
     
     // mac地址相同
     public func mylockscontainsMac(peripheral: BLEPeripheral) {
-        guard let mac = peripheral.mac else {
+        guard let mac = peripheral.rx_mac.value else {
             return
         }
-        let model = self.my_locks.filter({ $0.mac?.macValue == mac.macValue }).first
-        if model != nil {
-            model?.peripheral = peripheral
-            scan_peripheral.remove(peripheral)
-            model?.peripheral?.sendPairingCommand()
-        }
+//        let model = self.rx_mylocks.value.filter({ $0.rx_mac?.macValue == mac.macValue }).first
+//        if model != nil {
+//            model?.peripheral = peripheral
+//            scan_peripheral.remove(peripheral)
+//            model?.peripheral?.sendPairingCommand()
+//        }
     }
 }
 

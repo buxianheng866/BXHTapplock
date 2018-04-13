@@ -8,23 +8,28 @@
 
 import UIKit
 import CoreBluetooth
+import RxCocoa
+import RxSwift
+import NSObject_Rx
 
 class BLEPeripheral: NSObject {
     
     var name: String? {
         return self.peripheral.name
     }
-    var mac: String?
-    var status: CBPeripheralState = .disconnected
-    var battery: Int?
-    var hardwareVersion: String?
-    var firmwareVersion: String?
-    var suucess: Bool = false
     
     var fingerprintID: String?
     var key1: String?
     var key2: String?
     var serialNumber: String?
+    
+    
+    var rx_mac: BehaviorRelay<String?> = BehaviorRelay(value: nil)
+    var rx_staus: BehaviorRelay<CBPeripheralState> = BehaviorRelay(value: .disconnected)
+    var rx_battery: BehaviorRelay<Int?> = BehaviorRelay(value: nil)
+    var rx_hardware:  BehaviorRelay<String?> = BehaviorRelay(value: nil)
+    var rx_firmware: BehaviorRelay<String?> = BehaviorRelay(value: nil)
+    
     
     // 工具属性
     //可读Characteristic
@@ -39,6 +44,9 @@ class BLEPeripheral: NSObject {
         self.peripheral = peripheral
         super.init()
         self.peripheral.delegate = self
+        
+       _ = peripheral.rx.observe(CBPeripheralState.self, "state").map({$0!}).distinctUntilChanged().bind(to: rx_staus).disposed(by: rx.disposeBag)
+        
         
     }
     
@@ -57,13 +65,12 @@ extension BLEPeripheral: CBPeripheralDelegate {
             print("未被处理的数据: \(none)")
             return
         }
-        
-        self.suucess = response.success
+
         plog(response.rawValue)
         NotificationCenter.default.post(name: NSNotification.Name(rawValue: ble_notficationKye), object: response.success, userInfo: nil)
         switch response {
         case .GetDeviceMac:
-            self.mac = response.mac
+            self.rx_mac.accept(response.mac)
             
             TapplockManager.default.mylockscontainsMac(peripheral: self)
             
@@ -71,15 +78,15 @@ extension BLEPeripheral: CBPeripheralDelegate {
             self.sendGetFiremwareCommand()
         case .GetFiremwareVersion:
             
-            self.hardwareVersion = response.hardVersion
-            self.firmwareVersion = response.firemwareVersion
-            
+        
+            self.rx_hardware.accept(response.hardVersion)
+            self.rx_firmware.accept(response.firemwareVersion)
+        
             sendBatteryCommand()
             
         case .Battery:
-            self.battery = response.battery
-            
-            switch hardwareVersion! {
+            self.rx_battery.accept(response.battery)
+            switch self.rx_hardware.value! {
             case aKind:
                 sendGetHistory()
             case bKind:

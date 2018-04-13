@@ -10,6 +10,7 @@ import Foundation
 import UIKit
 import CryptoSwift
 
+
 func plog<T>(_ message: T,
                  fileName: String = #file,
                  methodName: String = #function,
